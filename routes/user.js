@@ -34,6 +34,13 @@ exports.login = function(req, res){
       res.send(500, util.inspect(err));
       return;
     };
+    console.log('session=' + JSON.stringify(req.session));
+    req.session.user = user;
     res.redirect('/');
   });
 };
+
+exports.logout = function(req, res){
+  delete req.session.user;
+  res.redirect('/');
+}

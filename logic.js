@@ -36,6 +36,7 @@ Logic.prototype.login = function(id, password, callback){
       callback(new Error('Password unmatch.'));
       return;
     }
+    user.id = id;
     callback(null, user);
   });
 };

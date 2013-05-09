@@ -2,12 +2,16 @@ extends layout
 
 block content
   h1= title
-  p Welcome to #{title}
-  form(action='/login', method='POST')
-    label(for='id') ID: 
-    input(name='id', type='text')
-    label(for='password') Password: 
-    input(name='password', type='password')
-    button(type='submit') login
-  p or
-  a(href='/register') register
+  if typeof(user) === 'undefined'
+    p Welcome to #{title}
+    form(action='/login', method='POST')
+      label(for='id') ID: 
+      input(name='id', type='text')
+      label(for='password') Password: 
+      input(name='password', type='password')
+      button(type='submit') login
+    p or
+    a(href='/register') register
+  else
+    p Welcome back #{user.id}
+    a(href='/logout') logout
