@@ -1,0 +1,11 @@
+extends layout
+
+block content
+  h1= title
+  p Register new user.
+  form(action='/register', method='POST')
+    label(for='id') ID: 
+    input(name='id', type='text')
+    label(for='password') Password: 
+    input(name='password', type='password')
+    button(type='submit') register
