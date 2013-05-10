@@ -10,6 +10,7 @@
     "jade": "*",
     "couchbase": "*",
     "config": "*",
-    "yaml": "*"
+    "yaml": "*",
+    "socket.io": "*"
   }
 }

@@ -13,5 +13,50 @@ block content
     p or
     a(href='/register') register
   else
-    p Welcome back #{user.id}
-    a(href='/logout') logout
+    div
+      span Welcome back #{user.id}
+      span  | 
+      a(href='/logout') logout
+      script(src='/javascripts/socket.io.js')
+    script
+      var socket = io.connect('http://192.168.1.167');
+      var battleID;
+      socket.on('news', function (data) {
+        console.log(data);
+      });
+      socket.on('joined', function (_battleID) {
+        battleID = _battleID;
+        console.log('Got battleID:' + battleID);
+        $('.controls').toggle();
+      });
+
+      function startBattle(userID) {
+        socket.emit('startBattle', {userID: userID});
+      }
+
+      function joinBattle(userID, friendID) {
+        socket.emit('joinBattle', {userID: userID, friendID: friendID});
+      }
+
+      function sendMessage(message) {
+        console.log('sending message:' + message + ' to:' + battleID);
+        if(message)
+          socket.emit('sendMessage', {battleID: battleID, userID: '#{user.id}', message: message});
+      }
+    div(class='controls', style='display: none')
+      p #{user.battleID}
+      label Message:
+      input#chatMessage(type='text')
+      button(onclick="sendMessage($('#chatMessage').val())") Send
+    div(class='controls')
+      button(onclick="startBattle('#{user.id}')") Start Battle!
+      div
+        label Friend's ID:
+        input#friendID(type='text')
+        button(onclick="joinBattle('#{user.id}', $('#friendID').val())") Join Battle!
+    if user.battleID
+      script
+        // Re-join the battle when the browser page is reloaded.
+        socket.emit('rejoinBattle', {battleID: '#{user.battleID}', userID: '#{user.id}'});
+
+

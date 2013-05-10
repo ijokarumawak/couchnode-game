@@ -41,6 +41,9 @@ exports.login = function(req, res){
 };
 
 exports.logout = function(req, res){
-  delete req.session.user;
-  res.redirect('/');
+  logic.leaveBattle(req.session.user.id, function(err){
+    console.log('error while leaving battle:' + util.inspect(err));
+    delete req.session.user;
+    res.redirect('/');
+  });
 }
