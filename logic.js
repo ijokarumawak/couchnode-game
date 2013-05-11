@@ -76,7 +76,7 @@ function update(docID, mutation, callback){
 Logic.prototype.startBattle = function(userID, callback) {
   var user;
   var battleID = 'Battle-' + userID + '-' + new Date().getTime();
-  var battle = {id: battleID, type: 'Battle'};
+  var battle = {id: battleID, type: 'Battle', monsters: []};
 
   async.series({
     user: function(task){
@@ -85,6 +85,24 @@ Logic.prototype.startBattle = function(userID, callback) {
         user.battleID = battleID;
       }, function(err){
         task(err);
+      });
+    },
+    monsters: function(task){
+      var q = {};
+      cb.view('dev_game', 'monsters_by_level', q, function(err, res){
+        console.log('view:' + util.inspect(err) + ' ' + JSON.stringify(res));
+        if(isErr(err, task)) return;
+        var keys = [];
+        res.forEach(function(r){
+          keys.push(r.id);
+        });
+        console.log('keys:' + JSON.stringify(keys));
+        cb.get(keys, function(err, doc){
+          if(isErr(err, task)) return;
+          battle.monsters.push(doc);
+        }, function(err){
+          task(err);
+        });
       });
     },
     battle: function(task){

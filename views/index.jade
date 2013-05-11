@@ -51,17 +51,32 @@ block content
         $('#messages').prepend('<p>' + message + '</p>');
       }
 
+      function attack(monsterID) {
+        socket.emit('attack', {userID: '#{user.id}', battleID: battle.id, monsterID: monsterID});
+      }
+
       function updateBattle(_battle) {
         battle = _battle;
         console.log('battle=' + JSON.stringify(battle));
-        var html = "<div id='battle'>";
-        battle.users.forEach(function(user){
-          html += '<div><b>' + user.id + '</b>'
-          + '<span> level:' + user.level + '</span>'
-          + '<span> hp:' + user.hp + '</span>'
-          + '<span> atk:' + user.atk + '</span>'
-          + '</div>';
+        var headers = ['name', 'level', 'HP', 'ATK', 'Command'];
+        var html = "<div id='battle'><table><tr>";
+        headers.forEach(function(header){
+          html += '<th>' + header + '</th>';
         });
+        battle.users.forEach(function(user){
+          html += '</tr><tr><td>' + user.id + '</td>'
+          + '<td>' + user.level + '</td>'
+          + '<td>' + user.hp + '</td>'
+          + '<td>' + user.atk + '</td><td>-</td>';
+        });
+        battle.monsters.forEach(function(monster){
+          html += '</tr><tr><td>' + monster.name + '</td>'
+          + '<td>' + monster.level + '</td>'
+          + '<td>' + monster.hp + '</td>'
+          + '<td>' + monster.atk + '</td>'
+          + '<td><button onclick="attack(\'' + monster.id + '\')">attack!</button></td>';
+        });
+        html += '</tr></table></div>'
         $('#battle').replaceWith(html);
       }
 

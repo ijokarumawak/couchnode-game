@@ -99,6 +99,9 @@ io.sockets.on('connection', function(socket) {
       io.sockets.in(battle.id).emit('updateBattle', battle);
     });
   });
+  socket.on('attack', function(data){
+    io.sockets.in(data.battleID).emit('news', data.userID + ' attacked ' + data.monsterID);
+  });
   socket.on('sendMessage', function(data) {
     io.sockets.in(data.battleID).emit('news', data.userID + ': ' + data.message);
   });
