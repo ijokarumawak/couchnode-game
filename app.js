@@ -26,10 +26,23 @@ app.configure(function(){
   app.use(express.cookieParser('your secret here'));
   app.use(express.session());
   app.use(function(req, res, next){
-    // make user accesible from view.
     console.log('login user=' + req.session.user);
-    res.locals.user = req.session.user;
-    next();
+    if(req.session.user) {
+      // use the latest data in the couchbase.
+      logic.getUser(req.session.user.id, function(err, user){
+        if(err) {
+          res.send(500, util.inspect(err));
+          return;
+        };
+        req.session.user = user;
+        console.log('got the latest user data:' + JSON.stringify(user));
+        // make user accesible from view.
+        res.locals.user = user;
+        next();
+      });
+    } else {
+      next();
+    }
   });
   app.use(app.router);
   app.use(express.static(path.join(__dirname, 'public')));
@@ -61,26 +74,29 @@ io.sockets.on('connection', function(socket) {
     });
   });
   socket.on('joinBattle', function(data) {
-    logic.joinBattle(data.userID, data.friendID, function(err, battleID) {
+    logic.joinBattle(data.userID, data.friendID, function(err, battle) {
       if(err) {
         socket.emit('news', data.userID + ' failed to join ' + data.friendID + '. err:' + util.inspect(err));
         return;
       }
-      socket.join(battleID);
-      io.sockets.in(battleID).emit('news', data.userID + ' joined battle:' + battleID);
-      socket.emit('joined', battleID);
+      socket.join(battle.id);
+      io.sockets.in(battle.id).emit('news',
+        data.userID + ' joined battle:' + battle.id);
+      io.sockets.in(battle.id).emit('updateBattle', battle);
+      socket.emit('joined', battle);
     });
   });
   socket.on('rejoinBattle', function(data) {
     var battleID = data.battleID;
     socket.join(battleID);
-    io.sockets.in(battleID).emit('news', data.userID + ' joined battle:' + battleID);
+    io.sockets.in(battleID).emit('news', data.userID + ' rejoined battle:' + battleID);
     logic.rejoinBattle(data.userID, battleID, function(err, battle){
       if(err){
         socket.emit('news', data.userID + ' failed to join ' + battleID + '. err:' + util.inspect(err));
         return;
       }
       socket.emit('joined', battle);
+      io.sockets.in(battle.id).emit('updateBattle', battle);
     });
   });
   socket.on('sendMessage', function(data) {

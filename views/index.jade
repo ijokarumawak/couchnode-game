@@ -29,6 +29,9 @@ block content
         console.log('Joined battle:' + battle.id);
         $('.controls').toggle();
       });
+      socket.on('updateBattle', function(battle) {
+        updateBattle(battle);
+      });
 
       function startBattle(userID) {
         socket.emit('startBattle', {userID: userID});
@@ -50,7 +53,16 @@ block content
 
       function updateBattle(_battle) {
         battle = _battle;
-        $('#battle').replaceWith(JSON.stringify(battle));
+        console.log('battle=' + JSON.stringify(battle));
+        var html = "<div id='battle'>";
+        battle.users.forEach(function(user){
+          html += '<div><b>' + user.id + '</b>'
+          + '<span> level:' + user.level + '</span>'
+          + '<span> hp:' + user.hp + '</span>'
+          + '<span> atk:' + user.atk + '</span>'
+          + '</div>';
+        });
+        $('#battle').replaceWith(html);
       }
 
     div(class='controls', style='display: none')
@@ -59,13 +71,13 @@ block content
       input#chatMessage(type='text')
       button(onclick="sendMessage($('#chatMessage').val())") Send
       div#battle
-      div#messages
     div(class='controls')
       button(onclick="startBattle('#{user.id}')") Start Battle!
       div
         label Friend's ID:
         input#friendID(type='text')
         button(onclick="joinBattle('#{user.id}', $('#friendID').val())") Join Battle!
+    div#messages
     if user.battleID
       script
         // Re-join the battle when the browser page is reloaded.

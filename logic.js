@@ -55,6 +55,10 @@ Logic.prototype.login = function(id, password, callback){
   });
 };
 
+Logic.prototype.getUser = function(id, callback){
+  cb.get('User-' + id, callback);
+};
+
 // An utility function which get, modify and set a document.
 function update(docID, mutation, callback){
   cb.get(docID, function(err, doc){
@@ -104,25 +108,27 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
       return;
     }
     var battleID = friend.battleID;
+    var battle, user;
 
-    cb.get(battleID, function(err, battle){
-      if(isErr(err, callback)) return;
-      battle.users.push(userID);
-      console.log('Updating battle:' + JSON.stringify(battle));
-
-      cb.set(battleID, battle, function(err) {
-        if(isErr(err, callback)) return;
-
-        cb.get('User-' + userID, function(err, user){
-          if(isErr(err, callback)) return;
+    async.series({
+      user: function(task){
+        update('User-' + userID, function(doc) {
+          user = doc;
           user.battleID = battleID;
-
-          cb.set('User-' + userID, user, function(err){
-            if(isErr(err, callback)) return;
-            callback(null, battleID);
-          });
+        }, function(err){
+          task(err);
+        })},
+      battle: function(task){
+        update(battleID, function(doc) {
+          battle = doc;
+          battle.users.push({id: userID, hp: user.hp,
+            level: user.level, atk: user.atk});
+        }, function(err) {
+          task(err);
         });
-      });
+      }
+    }, function(err){
+      callback(err, battle);
     });
   });
 };
