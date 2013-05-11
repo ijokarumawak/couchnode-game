@@ -24,8 +24,8 @@ block content
       socket.on('news', function (data) {
         showMessage(data);
       });
-      socket.on('joined', function (_battle) {
-        battle = _battle;
+      socket.on('joined', function (battle) {
+        updateBattle(battle);
         console.log('Joined battle:' + battle.id);
         $('.controls').toggle();
       });
@@ -47,11 +47,18 @@ block content
       function showMessage(message) {
         $('#messages').prepend('<p>' + message + '</p>');
       }
+
+      function updateBattle(_battle) {
+        battle = _battle;
+        $('#battle').replaceWith(JSON.stringify(battle));
+      }
+
     div(class='controls', style='display: none')
       p #{user.battleID}
       label Message:
       input#chatMessage(type='text')
       button(onclick="sendMessage($('#chatMessage').val())") Send
+      div#battle
       div#messages
     div(class='controls')
       button(onclick="startBattle('#{user.id}')") Start Battle!
