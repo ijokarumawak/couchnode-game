@@ -76,7 +76,7 @@ function update(docID, mutation, callback){
 Logic.prototype.startBattle = function(userID, callback) {
   var user;
   var battleID = 'Battle-' + userID + '-' + new Date().getTime();
-  var battle = {id: battleID, type: 'Battle', monsters: []};
+  var battle = {id: battleID, type: 'Battle', monsters: {}, users: {}};
 
   async.series({
     user: function(task){
@@ -99,15 +99,15 @@ Logic.prototype.startBattle = function(userID, callback) {
         console.log('keys:' + JSON.stringify(keys));
         cb.get(keys, function(err, doc){
           if(isErr(err, task)) return;
-          battle.monsters.push(doc);
+          battle.monsters[doc.id] = doc;
         }, function(err){
           task(err);
         });
       });
     },
     battle: function(task){
-      battle.users = [{id: userID, hp: user.hp,
-        level: user.level, atk: user.atk}];
+      battle.users[userID] = {id: userID, hp: user.hp,
+        level: user.level, atk: user.atk};
       cb.add(battleID, battle, function(err){
         task(err);
       });
@@ -139,8 +139,8 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
       battle: function(task){
         update(battleID, function(doc) {
           battle = doc;
-          battle.users.push({id: userID, hp: user.hp,
-            level: user.level, atk: user.atk});
+          battle.users[userID] = {id: userID, hp: user.hp,
+            level: user.level, atk: user.atk};
         }, function(err) {
           task(err);
         });
@@ -164,6 +164,23 @@ Logic.prototype.leaveBattle = function(userID, callback) {
     cb.set('User-' + userID, user, function(err){
       callback(err);
     });
+  });
+};
+
+Logic.prototype.attack = function(data, callback){
+  var battle;
+  update(data.battleID, function(doc){
+    battle = doc;
+    var attacker = battle.users[data.attackerID];
+    if(!attacker) attacker = battle.monsters[data.attackerID];
+    var attackee = battle.monsters[data.attackeeID];
+    if(!attackee) attackee = battle.users[data.attackeeID];
+    if(!attacker || !attackee) return;
+
+    attackee.hp -= attacker.atk;
+    if(attackee.hp < 0) attackee.hp = 0;
+  }, function(err){
+    callback(err, battle);
   });
 };
 

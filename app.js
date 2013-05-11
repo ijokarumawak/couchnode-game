@@ -62,6 +62,37 @@ var server = http.createServer(app);
 var io = require('socket.io').listen(server);
 
 io.sockets.on('connection', function(socket) {
+
+  function checkBattleState(battle) {
+    var win = true;
+    for(key in battle.monsters) {
+      var monster = battle.monsters[key];
+      if(monster.hp > 0) {
+        win = false;
+        break;
+      }
+    }
+    if(win) {
+      io.sockets.in(battle.id).emit('news', 'Players won!!');
+      io.sockets.in(battle.id).emit('win');
+      return true;
+    }
+    var lose = true;;
+    for(key in battle.users) {
+      var user = battle.users[key];
+      if(user.hp > 0) {
+        lose = false;
+        break;
+      }
+    }
+    if(lose) {
+      io.sockets.in(battle.id).emit('news', 'Players lost...');
+      io.sockets.in(battle.id).emit('lose');
+      return true;
+    }
+    return false;
+  };
+
   socket.on('startBattle', function(data) {
     logic.startBattle(data.userID, function(err, battle){
       if(err) {
@@ -100,7 +131,34 @@ io.sockets.on('connection', function(socket) {
     });
   });
   socket.on('attack', function(data){
-    io.sockets.in(data.battleID).emit('news', data.userID + ' attacked ' + data.monsterID);
+    io.sockets.in(data.battleID).emit('news',
+      data.attackerID + ' attacked ' + data.attackeeID);
+    logic.attack(data, function(err, battle){
+      if(err){
+        socket.emit('news', data.attackerID + ' failed to attack '
+          + data.attackeeID + '. err:' + util.inspect(err));
+        return;
+      }
+      io.sockets.in(battle.id).emit('updateBattle', battle);
+      if(checkBattleState(battle)) return;
+
+      // Monster's counter attack.
+      setTimeout(function(){
+        var attackerID = data.attackerID;
+        data.attackerID = data.attackeeID;
+        data.attackeeID = attackerID;
+        io.sockets.in(data.battleID).emit('news',
+          data.attackerID + ' attacked back ' + data.attackeeID);
+        logic.attack(data, function(err, battle){
+          if(err){
+            socket.emit('news', data.attackerID + ' failed to attack '
+              + data.attackeeID + '. err:' + util.inspect(err));
+            return;
+          }
+          io.sockets.in(battle.id).emit('updateBattle', battle);
+        });
+      }, 1000);
+    });
   });
   socket.on('sendMessage', function(data) {
     io.sockets.in(data.battleID).emit('news', data.userID + ': ' + data.message);
