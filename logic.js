@@ -1,5 +1,7 @@
 var driver = require('couchbase');
 var config = require('config');
+var util = require('util');
+var async = require('async');
 var cb;
 
 Logic = function(){};
@@ -22,7 +24,9 @@ driver.connect(config.Couchbase.connection, function(err, _cb){
 
 Logic.prototype.registerUser = function(id, password, callback){
   console.log('Registering new user:' + id);
-  cb.add('User-' + id, {password: password}, function(err, user){
+  var user = {type: 'User', id: id, password: password,
+    level: 1, hp: 100, atk: 10}
+  cb.add('User-' + id, user, function(err){
     if(err) {
       callback(err);
       return;
@@ -51,23 +55,43 @@ Logic.prototype.login = function(id, password, callback){
   });
 };
 
-Logic.prototype.startBattle = function(userID, callback) {
-  var battle = {users: [userID]};
-  var battleID = 'Battle-' + userID + '-' + new Date().getTime();
-  cb.add(battleID, battle, function(err, battle){
+// An utility function which get, modify and set a document.
+function update(docID, mutation, callback){
+  cb.get(docID, function(err, doc){
     if(isErr(err, callback)) return;
-    console.log('Battle has started:' + JSON.stringify(battle));
-
-    cb.get('User-' + userID, function(err, user){
-      if(isErr(err, callback)) return;
-      console.log('Updating user.');
-      user.battleID = battleID;
-
-      cb.set('User-' + userID, user, function(err, user){
-        if(isErr(err, callback)) return;
-        callback(null, battleID);
-      });
+    console.log('updating:' + docID);
+    mutation(doc);
+    cb.set(docID, doc, function(err){
+      console.log('updated:' + docID + '=' + JSON.stringify(doc)
+        + ' err=' + util.inspect(err));
+      callback(err);
     });
+  });
+}
+
+Logic.prototype.startBattle = function(userID, callback) {
+  var user;
+  var battleID = 'Battle-' + userID + '-' + new Date().getTime();
+  var battle = {id: battleID, type: 'Battle'};
+
+  async.series({
+    user: function(task){
+      update('User-' + userID, function(doc) {
+        user = doc;
+        user.battleID = battleID;
+      }, function(err){
+        task(err);
+      });
+    },
+    battle: function(task){
+      battle.users = [{id: userID, hp: user.hp,
+        level: user.level, atk: user.atk}];
+      cb.add(battleID, battle, function(err){
+        task(err);
+      });
+    }
+  }, function(err){
+    callback(err, battle);
   });
 };
 
@@ -102,6 +126,12 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
     });
   });
 };
+
+Logic.prototype.rejoinBattle = function(userID, battleID, callback){
+  cb.get(battleID, function(err, battle){
+    callback(err, battle);
+  });
+}
 
 Logic.prototype.leaveBattle = function(userID, callback) {
   cb.get('User-' + userID, function(err, user){

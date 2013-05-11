@@ -20,13 +20,13 @@ block content
       script(src='/javascripts/socket.io.js')
     script
       var socket = io.connect('http://192.168.1.167');
-      var battleID;
+      var battle;
       socket.on('news', function (data) {
-        console.log(data);
+        showMessage(data);
       });
-      socket.on('joined', function (_battleID) {
-        battleID = _battleID;
-        console.log('Got battleID:' + battleID);
+      socket.on('joined', function (_battle) {
+        battle = _battle;
+        console.log('Joined battle:' + battle.id);
         $('.controls').toggle();
       });
 
@@ -39,15 +39,20 @@ block content
       }
 
       function sendMessage(message) {
-        console.log('sending message:' + message + ' to:' + battleID);
+        console.log('sending message:' + message + ' to:' + battle.id);
         if(message)
-          socket.emit('sendMessage', {battleID: battleID, userID: '#{user.id}', message: message});
+          socket.emit('sendMessage', {battleID: battle.id, userID: '#{user.id}', message: message});
+      }
+
+      function showMessage(message) {
+        $('#messages').prepend('<p>' + message + '</p>');
       }
     div(class='controls', style='display: none')
       p #{user.battleID}
       label Message:
       input#chatMessage(type='text')
       button(onclick="sendMessage($('#chatMessage').val())") Send
+      div#messages
     div(class='controls')
       button(onclick="startBattle('#{user.id}')") Start Battle!
       div

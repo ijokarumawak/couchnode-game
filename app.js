@@ -50,14 +50,14 @@ var io = require('socket.io').listen(server);
 
 io.sockets.on('connection', function(socket) {
   socket.on('startBattle', function(data) {
-    logic.startBattle(data.userID, function(err, battleID){
+    logic.startBattle(data.userID, function(err, battle){
       if(err) {
         socket.emit('news', data.userID + ' failed to start battle. err:' + util.inspect(err));
         return;
       }
-      socket.join(battleID);
-      io.sockets.in(battleID).emit('news', data.userID + ' started a battle:' + battleID);
-      socket.emit('joined', battleID);
+      socket.join(battle.id);
+      io.sockets.in(battle.id).emit('news', data.userID + ' started a battle:' + battle.id);
+      socket.emit('joined', battle);
     });
   });
   socket.on('joinBattle', function(data) {
@@ -75,7 +75,13 @@ io.sockets.on('connection', function(socket) {
     var battleID = data.battleID;
     socket.join(battleID);
     io.sockets.in(battleID).emit('news', data.userID + ' joined battle:' + battleID);
-    socket.emit('joined', battleID);
+    logic.rejoinBattle(data.userID, battleID, function(err, battle){
+      if(err){
+        socket.emit('news', data.userID + ' failed to join ' + battleID + '. err:' + util.inspect(err));
+        return;
+      }
+      socket.emit('joined', battle);
+    });
   });
   socket.on('sendMessage', function(data) {
     io.sockets.in(data.battleID).emit('news', data.userID + ': ' + data.message);

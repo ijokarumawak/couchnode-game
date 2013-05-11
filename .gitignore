@@ -7,3 +7,7 @@ node_modules
 # Temporary files.
 *~
 *.swp
+
+# Third parties.
+public/javascripts/socket.io.js
+

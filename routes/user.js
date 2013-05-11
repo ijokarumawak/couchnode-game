@@ -18,6 +18,7 @@ exports.register = function(req, res){
       res.send(500, util.inspect(err));
       return;
     };
+    req.session.user = user;
     res.redirect('/');
   });
 };
