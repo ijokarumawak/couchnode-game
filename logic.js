@@ -193,4 +193,33 @@ Logic.prototype.attack = function(data, callback){
   });
 };
 
+Logic.prototype.win = function(battleID, callback){
+  var battle;
+  var userIDs = [];
+  update(battleID, function(doc){
+    battle = doc;
+    battle.result = 'won';
+    for(key in battle.users){
+      userIDs.push(battle.users[key].id);
+    }
+  }, function(err){
+    if(isErr(err, callback)) return;
+    async.each(userIDs, function(userID, task){
+      update('User-' + userID, function(user){
+        user.level++;
+        // -5 ~ +5)
+        var hpBonus = Math.round(Math.random() * 10) - 5;
+        user.hp += 33 + hpBonus;
+        // -2 ~ +2)
+        var atkBonus = Math.round(Math.random() * 4) - 2;
+        user.atk += 3 + atkBonus;
+      }, function(err){
+        task(err);
+      });
+    }, function(err){
+      callback(err, battle);
+    });
+  });
+};
+
 exports.Logic = Logic;

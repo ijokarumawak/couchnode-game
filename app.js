@@ -73,8 +73,16 @@ io.sockets.on('connection', function(socket) {
       }
     }
     if(win) {
-      io.sockets.in(battle.id).emit('news', 'Players won!!');
-      io.sockets.in(battle.id).emit('win');
+      logic.win(battle.id, function(err, battle){
+        if(err) {
+          socket.emit('news', data.userID + ' failed to update battle. err:'
+            + util.inspect(err));
+          return true;
+        }
+        io.sockets.in(battle.id).emit('news', 'Players won!!');
+        io.sockets.in(battle.id).emit('win');
+        io.sockets.in(battle.id).emit('updateBattle', battle);
+      });
       return true;
     }
     var lose = true;;
