@@ -175,7 +175,16 @@ Logic.prototype.attack = function(data, callback){
     if(!attacker) attacker = battle.monsters[data.attackerID];
     var attackee = battle.monsters[data.attackeeID];
     if(!attackee) attackee = battle.users[data.attackeeID];
-    if(!attacker || !attackee) return;
+    if(!attacker || !attackee) {
+      callback(null, battle);
+      return;
+    }
+
+    // attacker is already dead.
+    if(attacker.hp == 0) {
+      callback(null, battle);
+      return;
+    }
 
     attackee.hp -= attacker.atk;
     if(attackee.hp < 0) attackee.hp = 0;

@@ -143,21 +143,23 @@ io.sockets.on('connection', function(socket) {
       if(checkBattleState(battle)) return;
 
       // Monster's counter attack.
-      setTimeout(function(){
-        var attackerID = data.attackerID;
-        data.attackerID = data.attackeeID;
-        data.attackeeID = attackerID;
-        io.sockets.in(data.battleID).emit('news',
-          data.attackerID + ' attacked back ' + data.attackeeID);
-        logic.attack(data, function(err, battle){
-          if(err){
-            socket.emit('news', data.attackerID + ' failed to attack '
-              + data.attackeeID + '. err:' + util.inspect(err));
-            return;
-          }
-          io.sockets.in(battle.id).emit('updateBattle', battle);
-        });
-      }, 1000);
+      if(battle.monsters[data.attackeeID].hp > 0){
+        setTimeout(function(){
+          var attackerID = data.attackerID;
+          data.attackerID = data.attackeeID;
+          data.attackeeID = attackerID;
+          io.sockets.in(data.battleID).emit('news',
+            data.attackerID + ' attacked back ' + data.attackeeID);
+          logic.attack(data, function(err, battle){
+            if(err){
+              socket.emit('news', data.attackerID + ' failed to attack '
+                + data.attackeeID + '. err:' + util.inspect(err));
+              return;
+            }
+            io.sockets.in(battle.id).emit('updateBattle', battle);
+          });
+        }, 1000);
+      }
     });
   });
   socket.on('sendMessage', function(data) {
