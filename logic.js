@@ -88,7 +88,9 @@ Logic.prototype.startBattle = function(userID, callback) {
       });
     },
     monsters: function(task){
-      var q = {};
+      // 1 to 3 monsters.
+      var numOfMonsters = Math.round(Math.random() * 2) + 1;
+      var q = {startkey: user.level, limit: numOfMonsters};
       cb.view('dev_game', 'monsters_by_level', q, function(err, res){
         console.log('view:' + util.inspect(err) + ' ' + JSON.stringify(res));
         if(isErr(err, task)) return;
@@ -169,33 +171,72 @@ Logic.prototype.leaveBattle = function(userID, callback) {
 
 Logic.prototype.attack = function(data, callback){
   var battle;
+  var messages = [];
   update(data.battleID, function(doc){
     battle = doc;
-    var attacker = battle.users[data.attackerID];
-    if(!attacker) attacker = battle.monsters[data.attackerID];
-    var attackee = battle.monsters[data.attackeeID];
-    if(!attackee) attackee = battle.users[data.attackeeID];
-    if(!attacker || !attackee) {
-      callback(null, battle);
+    var user = battle.users[data.attackerID];
+    var monster = battle.monsters[data.attackeeID];
+
+    // user/monster is already dead.
+    if(user.hp == 0 || monster.hp == 0) {
+      callback(null, battle, messages);
       return;
     }
 
-    // attacker is already dead.
-    if(attacker.hp == 0) {
-      callback(null, battle);
-      return;
-    }
+    // Damage bonus. 0 to 1.
+    var damageBonus = Math.round(Math.random() * user.atk);
+    var damage = user.atk + damageBonus;
+    monster.hp -= damage;
+    messages.push(user.id + 'の攻撃!! ' + monster.name + 'に' + damage + 'のダメージ!');
 
-    attackee.hp -= attacker.atk;
-    if(attackee.hp < 0) attackee.hp = 0;
+    // Check if monster is still alive.
+    if(monster.hp <= 0) {
+      monster.hp = 0;
+      messages.push(user.id + 'が' + monster.name + 'を倒した!!');
+
+   } else {
+      // Counter attack.
+      damageBonus = Math.round(Math.random() * monster.atk);
+      damage = monster.atk + damageBonus;
+      user.hp -= damage;
+      messages.push(monster.name + 'のカウンターアタック!! ' + user.id + 'に' + damage + 'のダメージ!');
+
+      if(user.hp <= 0) {
+        user.hp = 0;
+        messages.push(user.id + 'は力尽きた。。。');
+      }
+    }
   }, function(err){
-    callback(err, battle);
+    callback(err, battle, messages);
   });
 };
 
-Logic.prototype.win = function(battleID, callback){
+function isAllDead(all){
+  for(key in all) {
+    var a = all[key];
+    if(a.hp > 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Logic.prototype.checkBattleState = function(battle, callback) {
+  if(isAllDead(battle.monsters)) {
+    won(battle.id, callback);
+    return;
+  }
+  if(isAllDead(battle.users)) {
+    lost(battle.id, callback);
+    return;
+  }
+  callback(null, battle);
+};
+
+function won(battleID, callback){
   var battle;
   var userIDs = [];
+  var messages = [];
   update(battleID, function(doc){
     battle = doc;
     battle.result = 'won';
@@ -204,21 +245,37 @@ Logic.prototype.win = function(battleID, callback){
     }
   }, function(err){
     if(isErr(err, callback)) return;
+    messages.push('プレイヤーの勝利!');
+    // Level up!
     async.each(userIDs, function(userID, task){
       update('User-' + userID, function(user){
         user.level++;
         // -5 ~ +5)
-        var hpBonus = Math.round(Math.random() * 10) - 5;
-        user.hp += 33 + hpBonus;
+        var hpBonus = 33 + (Math.round(Math.random() * 10) - 5);
+        user.hp += hpBonus;
         // -2 ~ +2)
-        var atkBonus = Math.round(Math.random() * 4) - 2;
-        user.atk += 3 + atkBonus;
+        var atkBonus = 3 + (Math.round(Math.random() * 4) - 2);
+        user.atk += atkBonus;
+        messages.push(user.id + 'はレベル' + user.level + 'になった! HPが'
+          + hpBonus + 'あがった、攻撃力が' + atkBonus + 'あがった!');
       }, function(err){
         task(err);
       });
     }, function(err){
-      callback(err, battle);
+      callback(err, battle, messages);
     });
+  });
+};
+
+function lost(battleID, callback){
+  var battle;
+  var messages = [];
+  update(battleID, function(doc){
+    battle = doc;
+    battle.result = 'lost';
+    messages.push('モンスターたちに敗れた。。。');
+  }, function(err){
+    callback(err, battle, messages);
   });
 };
 

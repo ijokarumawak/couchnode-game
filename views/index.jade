@@ -22,12 +22,11 @@ block content
       var socket = io.connect('http://192.168.1.167');
       var battle;
       socket.on('news', function (data) {
-        showMessage(data);
+        showMessages(data);
       });
       socket.on('joined', function (battle) {
         updateBattle(battle);
         console.log('Joined battle:' + battle.id);
-        $('.controls').toggle();
       });
       socket.on('updateBattle', function(battle) {
         updateBattle(battle);
@@ -47,12 +46,20 @@ block content
           socket.emit('sendMessage', {battleID: battle.id, userID: '#{user.id}', message: message});
       }
 
-      function showMessage(message) {
-        $('#messages').prepend('<p>' + message + '</p>');
+      function showMessages(messages) {
+        if(!messages.forEach) messages = [messages];
+        var timeout = 0;
+        messages.forEach(function(message){
+          setTimeout(function(){
+            $('#messages').prepend('<p>' + message + '</p>');
+          }, timeout);
+          timeout += 500;
+        });
       }
 
       function attack(monsterID) {
-        socket.emit('attack', {attackerID: '#{user.id}', battleID: battle.id, attackeeID: monsterID});
+        socket.emit('attack',
+          {attackerID: '#{user.id}', battleID: battle.id, attackeeID: monsterID});
       }
 
       function updateBattle(_battle) {
@@ -82,20 +89,32 @@ block content
         };
         html += '</tr></table></div>'
         $('#battle').replaceWith(html);
+        $('#result').text(battle.result);
+
+        if(battle.result) {
+          $('.controls').show();
+          $('.controls-fighting').hide();
+        } else {
+          $('.controls').hide();
+          $('.controls-fighting').show();
+        };
       }
 
-    div(class='controls', style='display: none')
+    div(class='controls-fighting', style='display: none')
       p #{user.battleID}
       label Message:
       input#chatMessage(type='text')
       button(onclick="sendMessage($('#chatMessage').val())") Send
-      div#battle
+
     div(class='controls')
       button(onclick="startBattle('#{user.id}')") Start Battle!
       div
         label Friend's ID:
         input#friendID(type='text')
         button(onclick="joinBattle('#{user.id}', $('#friendID').val())") Join Battle!
+
+    h1#result
+    div#battle
     div#messages
     if user.battleID
       script
