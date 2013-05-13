@@ -64,7 +64,11 @@ function update(docID, mutation, callback){
   cb.get(docID, function(err, doc){
     if(isErr(err, callback)) return;
     console.log('updating:' + docID);
-    mutation(doc);
+    var mret = mutation(doc);
+    if(typeof(mret) === 'boolean' && !mret) {
+      callback(null);
+      return;
+    }
     cb.set(docID, doc, function(err){
       console.log('updated:' + docID + '=' + JSON.stringify(doc)
         + ' err=' + util.inspect(err));
@@ -141,6 +145,15 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
       battle: function(task){
         update(battleID, function(doc) {
           battle = doc;
+          console.log('###' + battle.result);
+          if(battle.result) {
+            task(new Error('This battle has already finished.'));
+            return false;
+          }
+          if(battle.users[userID]){
+            task(new Error(userID + 'has already joined this battle.'));
+            return false;
+          }
           battle.users[userID] = {id: userID, hp: user.hp,
             level: user.level, atk: user.atk};
         }, function(err) {
@@ -155,7 +168,12 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
 
 Logic.prototype.rejoinBattle = function(userID, battleID, callback){
   cb.get(battleID, function(err, battle){
-    callback(err, battle);
+    if(isErr(err, callback)) return;
+    if(battle.result) {
+      callback(new Error('This battle has already finished.'));
+      return;
+    }
+    callback(null, battle);
   });
 }
 

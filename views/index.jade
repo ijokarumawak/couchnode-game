@@ -14,7 +14,8 @@ block content
     a(href='/register') register
   else
     div
-      span Welcome back #{user.id}
+      span Welcome back!!
+       b #{user.id}
       span  | 
       a(href='/logout') logout
       script(src='/javascripts/socket.io.js')
@@ -24,20 +25,22 @@ block content
       socket.on('news', function (data) {
         showMessages(data);
       });
-      socket.on('joined', function (battle) {
-        updateBattle(battle);
-        console.log('Joined battle:' + battle.id);
-      });
       socket.on('updateBattle', function(battle) {
         updateBattle(battle);
       });
 
       function startBattle(userID) {
-        socket.emit('startBattle', {userID: userID});
+        $('#messages').text(' ');
+        var data = {userID: userID};
+        if(battle) data.oldBattleID = battle.id;
+        socket.emit('startBattle', data);
       }
 
       function joinBattle(userID, friendID) {
-        socket.emit('joinBattle', {userID: userID, friendID: friendID});
+        $('#messages').text(' ');
+        var data = {userID: userID, friendID: friendID};
+        if(battle) data.oldBattleID = battle.id;
+        socket.emit('joinBattle', data);
       }
 
       function sendMessage(message) {
@@ -47,6 +50,7 @@ block content
       }
 
       function showMessages(messages) {
+        if(!messages) return;
         if(!messages.forEach) messages = [messages];
         var timeout = 0;
         messages.forEach(function(message){
@@ -66,7 +70,7 @@ block content
         battle = _battle;
         console.log('battle=' + JSON.stringify(battle));
         var headers = ['name', 'level', 'HP', 'ATK', 'Command'];
-        var html = "<div id='battle'><table><tr>";
+        var html = "<div id='battle'><h2>" + battle.id + "</h2><table><tr>";
         headers.forEach(function(header){
           html += '<th>' + header + '</th>';
         });
@@ -89,19 +93,19 @@ block content
         };
         html += '</tr></table></div>'
         $('#battle').replaceWith(html);
-        $('#result').text(battle.result);
 
         if(battle.result) {
           $('.controls').show();
           $('.controls-fighting').hide();
+          $('#result').text(battle.result);
         } else {
           $('.controls').hide();
           $('.controls-fighting').show();
+          $('#result').text(' ');
         };
       }
 
     div(class='controls-fighting', style='display: none')
-      p #{user.battleID}
       label Message:
       input#chatMessage(type='text')
       button(onclick="sendMessage($('#chatMessage').val())") Send

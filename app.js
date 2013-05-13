@@ -70,9 +70,10 @@ io.sockets.on('connection', function(socket) {
         socket.emit('news', data.userID + ' failed to start battle. err:' + util.inspect(err));
         return;
       }
+      if(data.oldBattleID) socket.leave(data.oldBattleID);
       socket.join(battle.id);
       io.sockets.in(battle.id).emit('news', data.userID + ' started a battle:' + battle.id);
-      socket.emit('joined', battle);
+      io.sockets.in(battle.id).emit('updateBattle', battle);
     });
   });
   socket.on('joinBattle', function(data) {
@@ -81,23 +82,22 @@ io.sockets.on('connection', function(socket) {
         socket.emit('news', data.userID + ' failed to join ' + data.friendID + '. err:' + util.inspect(err));
         return;
       }
+      if(data.oldBattleID) socket.leave(data.oldBattleID);
       socket.join(battle.id);
       io.sockets.in(battle.id).emit('news',
         data.userID + ' joined battle:' + battle.id);
       io.sockets.in(battle.id).emit('updateBattle', battle);
-      socket.emit('joined', battle);
     });
   });
   socket.on('rejoinBattle', function(data) {
     var battleID = data.battleID;
-    socket.join(battleID);
-    io.sockets.in(battleID).emit('news', data.userID + ' rejoined battle:' + battleID);
     logic.rejoinBattle(data.userID, battleID, function(err, battle){
       if(err){
         socket.emit('news', data.userID + ' failed to join ' + battleID + '. err:' + util.inspect(err));
         return;
       }
-      socket.emit('joined', battle);
+      socket.join(battle.id);
+      io.sockets.in(battle.id).emit('news', data.userID + ' rejoined battle:' + battleID);
       io.sockets.in(battle.id).emit('updateBattle', battle);
     });
   });
@@ -108,6 +108,9 @@ io.sockets.on('connection', function(socket) {
           + data.attackeeID + '. err:' + util.inspect(err));
         return;
       }
+      // the battle has finished already.
+      if(battle.result) return;
+
       io.sockets.in(battle.id).emit('news', messages);
       logic.checkBattleState(battle, function(err, battle, messages){
         io.sockets.in(battle.id).emit('updateBattle', battle);
@@ -116,6 +119,7 @@ io.sockets.on('connection', function(socket) {
     });
   });
   socket.on('sendMessage', function(data) {
+    console.log('### rooms=' + JSON.stringify(io.sockets.manager.rooms));
     io.sockets.in(data.battleID).emit('news', data.userID + ': ' + data.message);
   });
 });
