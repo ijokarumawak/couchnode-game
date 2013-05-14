@@ -60,19 +60,36 @@ Logic.prototype.getUser = function(id, callback){
 };
 
 // An utility function which get, modify and set a document.
-function update(docID, mutation, callback){
-  cb.get(docID, function(err, doc){
+function update(docID, mutation, options, callback){
+  if(typeof(options) === 'function'){
+    callback = options;
+    options = {};
+  }
+  cb.get(docID, function(err, doc, meta){
     if(isErr(err, callback)) return;
-    console.log('updating:' + docID);
+
     var mret = mutation(doc);
     if(typeof(mret) === 'boolean' && !mret) {
+      console.log('[update] mutation for: ' + docID + 'is cancelled.');
       callback(null);
       return;
     }
-    cb.set(docID, doc, function(err){
-      console.log('updated:' + docID + '=' + JSON.stringify(doc)
-        + ' err=' + util.inspect(err));
-      callback(err);
+
+    cb.set(docID, doc, meta, function(err){
+      var retry = typeof(options.retry) == 'number' ? options.retry : 0;
+      if(err && err.code == driver.errors.keyAlreadyExists && retry > 0){
+        console.log('[update] failed. retrying(' + retry + ')...: ' + docID);
+        options.retry = --retry;
+        update(docID, mutation, options, callback);
+        return;
+      }
+      if(err){
+        console.log('[update] failed. docID: ' + docID + ' Err:' + util.inspect(err));
+        callback(err);
+        return;
+      }
+      console.log('[update] succeed: ' + docID);
+      callback();
     });
   });
 }
@@ -156,7 +173,7 @@ Logic.prototype.joinBattle = function(userID, friendID, callback) {
           }
           battle.users[userID] = {id: userID, hp: user.hp,
             level: user.level, atk: user.atk};
-        }, function(err) {
+        }, {retry: 3}, function(err) {
           task(err);
         });
       }
@@ -189,8 +206,9 @@ Logic.prototype.leaveBattle = function(userID, callback) {
 
 Logic.prototype.attack = function(data, callback){
   var battle;
-  var messages = [];
+  var messages;
   update(data.battleID, function(doc){
+    messages = []; // clear messages so that it won't remain when retrying.
     battle = doc;
     var user = battle.users[data.attackerID];
     var monster = battle.monsters[data.attackeeID];
@@ -198,7 +216,7 @@ Logic.prototype.attack = function(data, callback){
     // user/monster is already dead.
     if(user.hp == 0 || monster.hp == 0) {
       callback(null, battle, messages);
-      return;
+      return false;
     }
 
     // Damage bonus. 0 to 1.
@@ -224,7 +242,9 @@ Logic.prototype.attack = function(data, callback){
         messages.push(user.id + 'は力尽きた。。。');
       }
     }
-  }, function(err){
+  // Within a single battle, multiple players may attack at the same time.
+  // In order to apply each attack to the battle, update it with replying enabled.
+  }, {retry: 3}, function(err){
     callback(err, battle, messages);
   });
 };
